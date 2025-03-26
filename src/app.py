@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_file
 import os
 from sphere import create_360_gallery
 from datetime import datetime
+from PIL import Image  # Add this import
 
 app = Flask(__name__)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')

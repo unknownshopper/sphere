@@ -54,23 +54,28 @@
             max-width: 100%;
             border-radius: 5px;
         }
-        /* Add this to your existing styles */
-                .download-button {
-                    display: none;
-                    margin-top: 20px;
-                    padding: 15px 30px;
-                    background-color: #2196F3;
-                    color: white;
-                    border: none;
-                    border-radius: 5px;
-                    cursor: pointer;
-                    font-size: 1.1em;
-                    text-decoration: none;
-                    transition: background-color 0.3s ease;
-                }
-                .download-button:hover {
-                    background-color: #1976D2;
-                }
+        .download-button {
+            display: none;
+            margin-top: 20px;
+            padding: 15px 30px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        .download-button:hover {
+            background-color: #1976D2;
+        }
+        .loading {
+            display: none;
+            margin: 20px auto;
+            text-align: center;
+            color: #4CAF50;
+        }
     </style>
 </head>
 <body>
@@ -120,33 +125,53 @@
         document.getElementById('uploadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const canvas = new fabric.Canvas('resultCanvas', {
-                width: 6000,
-                height: 3000
-            });
-
-            const images = {};
-            const positions = ['front', 'back', 'left', 'right'];
+            // Show loading message
+            document.getElementById('loading').style.display = 'block';
             
-            for (const pos of positions) {
-                const file = this.elements[pos].files[0];
-                const img = await createImage(file);
-                images[pos] = img;
+            try {
+                // Create a real canvas element first
+                const realCanvas = document.createElement('canvas');
+                realCanvas.width = 6000;
+                realCanvas.height = 3000;
+                const ctx = realCanvas.getContext('2d');
+                
+                const images = {};
+                const positions = ['front', 'back', 'left', 'right'];
+                
+                for (const pos of positions) {
+                    const file = this.elements[pos].files[0];
+                    const img = await createImage(file);
+                    images[pos] = img;
+                }
+
+                // Draw images directly on the canvas
+                const imgWidth = realCanvas.width / 4;
+                const imgHeight = realCanvas.height / 2;
+
+                // Place images
+                ctx.drawImage(images['front'], realCanvas.width/4, realCanvas.height/4, imgWidth, imgHeight);
+                ctx.drawImage(images['back'], 0, realCanvas.height/4, imgWidth, imgHeight);
+                ctx.drawImage(images['back'], 3*realCanvas.width/4, realCanvas.height/4, imgWidth, imgHeight);
+                ctx.drawImage(images['left'], realCanvas.width/2, realCanvas.height/4, imgWidth, imgHeight);
+                ctx.drawImage(images['right'], 3*realCanvas.width/4, realCanvas.height/4, imgWidth, imgHeight);
+
+                // Show result and download button
+                const resultImage = document.getElementById('result-image');
+                resultImage.src = realCanvas.toDataURL('image/jpeg', 0.95);
+                resultImage.style.display = 'block';
+
+                const downloadLink = document.getElementById('download-link');
+                downloadLink.href = resultImage.src;
+                downloadLink.download = `360photo_${new Date().getTime()}.jpg`;
+                downloadLink.style.display = 'block';
+                downloadLink.textContent = 'Download 360° Image';
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error processing images. Please try again.');
+            } finally {
+                // Hide loading message
+                document.getElementById('loading').style.display = 'none';
             }
-
-            // Create 360° image
-            await create360Image(canvas, images);
-            
-            // Show download button with the image
-            const resultImage = document.getElementById('result-image');
-            resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
-            resultImage.style.display = 'block';
-
-            const downloadLink = document.getElementById('download-link');
-            downloadLink.href = resultImage.src;
-            downloadLink.download = `360photo_${new Date().getTime()}.jpg`;
-            downloadLink.style.display = 'block';  // Changed from 'inline-block' to 'block'
-            downloadLink.textContent = 'Download 360° Image';  // Clear button text
         });
 
         function createImage(file) {
