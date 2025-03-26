@@ -54,16 +54,23 @@
             max-width: 100%;
             border-radius: 5px;
         }
-        .download-button {
-            display: none;
-            margin-top: 10px;
-            padding: 10px 20px;
-            background-color: #2196F3;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
+        /* Add this to your existing styles */
+                .download-button {
+                    display: none;
+                    margin-top: 20px;
+                    padding: 15px 30px;
+                    background-color: #2196F3;
+                    color: white;
+                    border: none;
+                    border-radius: 5px;
+                    cursor: pointer;
+                    font-size: 1.1em;
+                    text-decoration: none;
+                    transition: background-color 0.3s ease;
+                }
+                .download-button:hover {
+                    background-color: #1976D2;
+                }
     </style>
 </head>
 <body>
@@ -130,7 +137,7 @@
             // Create 360° image
             await create360Image(canvas, images);
             
-            // Convert to JPG and download
+            // Show download button with the image
             const resultImage = document.getElementById('result-image');
             resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
             resultImage.style.display = 'block';
@@ -138,7 +145,8 @@
             const downloadLink = document.getElementById('download-link');
             downloadLink.href = resultImage.src;
             downloadLink.download = `360photo_${new Date().getTime()}.jpg`;
-            downloadLink.style.display = 'inline-block';
+            downloadLink.style.display = 'block';  // Changed from 'inline-block' to 'block'
+            downloadLink.textContent = 'Download 360° Image';  // Clear button text
         });
 
         function createImage(file) {
