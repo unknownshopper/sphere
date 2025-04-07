@@ -15,6 +15,18 @@ os.makedirs(STATIC_FOLDER, exist_ok=True)
 def auto_adjust_image(image_path):
     """Auto adjust image to meet requirements"""
     with Image.open(image_path) as img:
+        # Handle mobile device image rotation
+        try:
+            exif = img._getexif()
+            if exif:
+                orientation = exif.get(274)  # 274 is the orientation tag
+                if orientation:
+                    rotate_values = {3: 180, 6: 270, 8: 90}
+                    if orientation in rotate_values:
+                        img = img.rotate(rotate_values[orientation], expand=True)
+        except:
+            pass  # If no EXIF data, continue with original image
+
         # Convert to RGB if needed
         if img.mode != 'RGB':
             img = img.convert('RGB')
