@@ -3,6 +3,8 @@
 <head>
     <title>360°</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Add piexif.js before other scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/piexifjs/piexif.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -110,7 +112,10 @@
     <div id="result-container">
         <canvas id="resultCanvas" style="display: none;"></canvas>
         <img id="result-image" style="display: none;">
-        <a id="download-link" class="download-button">Download 360° Image</a>
+        <a id="download-link" class="download-button" download>Download 360° Image</a>
+        <p style="margin-top: 10px; font-size: 0.9em; color: #666;">
+            (If the download button doesn't work, tap and hold the image to download)
+        </p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
@@ -156,16 +161,35 @@
                 ctx.drawImage(images['left'], 2 * imgWidth, 0, imgWidth, imgHeight);
                 ctx.drawImage(images['right'], 3 * imgWidth, 0, imgWidth, imgHeight);
     
-                // Show result and download button
+                // Before creating the final image, add 360 metadata
                 const resultImage = document.getElementById('result-image');
-                resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
+                const imageData = canvas.toDataURL('image/jpeg', 0.95);
+                
+                // Create XMP metadata
+                const zeroth = {};
+                const exif = {};
+                const gps = {};
+                
+                const exifObj = {"0th":zeroth, "Exif":exif, "GPS":gps};
+                const exifBytes = piexif.dump(exifObj);
+                
+                const newImageData = piexif.insert(exifBytes, imageData);
+                
+                // Show result and download button
+                resultImage.src = newImageData;
                 resultImage.style.display = 'block';
     
                 const downloadLink = document.getElementById('download-link');
-                downloadLink.href = resultImage.src;
+                const blob = await (await fetch(newImageData)).blob();
+                downloadLink.href = URL.createObjectURL(blob);
                 downloadLink.download = `360photo_${new Date().getTime()}.jpg`;
                 downloadLink.style.display = 'block';
                 downloadLink.textContent = 'Download 360° Image';
+                
+                // Clean up
+                downloadLink.addEventListener('click', () => {
+                    setTimeout(() => URL.revokeObjectURL(downloadLink.href), 100);
+                });
                 
             } catch (error) {
                 console.error('Error:', error);
@@ -177,55 +201,55 @@
             }
         });
 
-        function createImage(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => resolve(img);
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function create360Image(canvas, images) {
-            const width = canvas.width;
-            const height = canvas.height;
-            const imgWidth = width / 4;
-            const imgHeight = height / 2;
-
-            // Place images
-            const positions = {
-                'front': { x: width/4, y: height/4 },
-                'back': { x: 0, y: height/4 },
-                'left': { x: width/2, y: height/4 },
-                'right': { x: 3*width/4, y: height/4 }
-            };
-
-            for (const [pos, img] of Object.entries(images)) {
-                const fabricImage = new fabric.Image(img, {
-                    left: positions[pos].x,
-                    top: positions[pos].y,
-                    scaleX: imgWidth / img.width,
-                    scaleY: imgHeight / img.height
+            function createImage(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
                 });
-                canvas.add(fabricImage);
+            }
 
-                // Add back image on the right edge too
-                if (pos === 'back') {
-                    const duplicateImage = new fabric.Image(img, {
-                        left: 3*width/4,
-                        top: height/4,
+            async function create360Image(canvas, images) {
+                const width = canvas.width;
+                const height = canvas.height;
+                const imgWidth = width / 4;
+                const imgHeight = height / 2;
+
+                // Place images
+                const positions = {
+                    'front': { x: width/4, y: height/4 },
+                    'back': { x: 0, y: height/4 },
+                    'left': { x: width/2, y: height/4 },
+                    'right': { x: 3*width/4, y: height/4 }
+                };
+
+                for (const [pos, img] of Object.entries(images)) {
+                    const fabricImage = new fabric.Image(img, {
+                        left: positions[pos].x,
+                        top: positions[pos].y,
                         scaleX: imgWidth / img.width,
                         scaleY: imgHeight / img.height
                     });
-                    canvas.add(duplicateImage);
-                }
-            }
+                    canvas.add(fabricImage);
 
-            canvas.renderAll();
-        }
-    </script>
+                    // Add back image on the right edge too
+                    if (pos === 'back') {
+                        const duplicateImage = new fabric.Image(img, {
+                            left: 3*width/4,
+                            top: height/4,
+                            scaleX: imgWidth / img.width,
+                            scaleY: imgHeight / img.height
+                        });
+                        canvas.add(duplicateImage);
+                    }
+                }
+
+                canvas.renderAll();
+            }
+        </script>
 </body>
 </html>
