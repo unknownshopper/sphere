@@ -260,17 +260,132 @@
             }
         });
 
+            // Modify createImage function to handle mobile images better
             function createImage(file) {
                 return new Promise((resolve) => {
                     const reader = new FileReader();
                     reader.onload = (e) => {
                         const img = new Image();
-                        img.onload = () => resolve(img);
+                        img.onload = () => {
+                            // Create a smaller version of the image for processing
+                            const canvas = document.createElement('canvas');
+                            const ctx = canvas.getContext('2d');
+                            
+                            // Calculate new dimensions (maintain aspect ratio)
+                            const MAX_DIMENSION = 1500;
+                            let width = img.width;
+                            let height = img.height;
+                            
+                            if (width > height && width > MAX_DIMENSION) {
+                                height = (height * MAX_DIMENSION) / width;
+                                width = MAX_DIMENSION;
+                            } else if (height > MAX_DIMENSION) {
+                                width = (width * MAX_DIMENSION) / height;
+                                height = MAX_DIMENSION;
+                            }
+                            
+                            canvas.width = width;
+                            canvas.height = height;
+                            
+                            // Draw and optimize the image
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const optimizedImg = new Image();
+                            optimizedImg.onload = () => resolve(optimizedImg);
+                            optimizedImg.src = canvas.toDataURL('image/jpeg', 0.8);
+                        };
                         img.src = e.target.result;
                     };
                     reader.readAsDataURL(file);
                 });
             }
+
+            // Update the submit event listener
+            document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                try {
+                    const submitButton = document.querySelector('.submit-button');
+                    submitButton.textContent = 'Processing...';
+                    submitButton.disabled = true;
+    
+                    // Reduce canvas size for mobile
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 4096; // Reduced from 6000
+                    canvas.height = 2048; // Reduced from 3000
+                    const ctx = canvas.getContext('2d');
+
+                    // Rest of the code remains the same...
+                    const imgWidth = canvas.width / 4;
+                    const imgHeight = canvas.height;
+                    
+                    ctx.drawImage(images['front'], imgWidth, 0, imgWidth, imgHeight);
+                    ctx.drawImage(images['back'], 0, 0, imgWidth, imgHeight);
+                    ctx.drawImage(images['left'], 2 * imgWidth, 0, imgWidth, imgHeight);
+                    ctx.drawImage(images['right'], 3 * imgWidth, 0, imgWidth, imgHeight);
+    
+                    // Before creating the final image, add 360 metadata
+                    const resultImage = document.getElementById('result-image');
+                    const imageData = canvas.toDataURL('image/jpeg', 0.95);
+                    
+                    // Updated XMP metadata for Facebook 360
+                    const zeroth = {};
+                    const exif = {};
+                    const gps = {};
+                    
+                    // Add specific XMP tags that Facebook requires
+                    zeroth[piexif.ImageIFD.XPKeywords] = "equirectangular";
+                    zeroth[piexif.ImageIFD.Software] = "360 Gallery Creator";
+                    
+                    // Add GPano metadata
+                    const xmpMeta = `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.1.0">
+                        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+                            <rdf:Description rdf:about=""
+                                xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"
+                                GPano:UsePanoramaViewer="True"
+                                GPano:ProjectionType="equirectangular"
+                                GPano:CroppedAreaImageWidthPixels="6000"
+                                GPano:CroppedAreaImageHeightPixels="3000"
+                                GPano:FullPanoWidthPixels="6000"
+                                GPano:FullPanoHeightPixels="3000"
+                                GPano:CroppedAreaLeftPixels="0"
+                                GPano:CroppedAreaTopPixels="0">
+                            </rdf:Description>
+                        </rdf:RDF>
+                    </x:xmpmeta>`;
+                    
+                    const exifObj = {"0th":zeroth, "Exif":exif, "GPS":gps};
+                    const exifBytes = piexif.dump(exifObj);
+                    
+                    // Insert both EXIF and XMP metadata
+                    let newImageData = piexif.insert(exifBytes, imageData);
+                    newImageData = newImageData.replace(/^data:image\/jpeg;base64,/, '');
+                    newImageData = 'data:image/jpeg;base64,' + newImageData.replace('JFIF', 'Exif') + xmpMeta;
+    
+                    // Show result and download button
+                    resultImage.src = newImageData;
+                    resultImage.style.display = 'block';
+    
+                    const downloadLink = document.getElementById('download-link');
+                    const blob = await (await fetch(newImageData)).blob();
+                    downloadLink.href = URL.createObjectURL(blob);
+                    downloadLink.download = `360photo_${new Date().getTime()}.jpg`;
+                    downloadLink.style.display = 'block';
+                    downloadLink.textContent = 'Download 360° Image';
+                    
+                    // Clean up
+                    downloadLink.addEventListener('click', () => {
+                        setTimeout(() => URL.revokeObjectURL(downloadLink.href), 100);
+                    });
+                    
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error processing images. Please try again.');
+                } finally {
+                    // Reset button
+                    submitButton.textContent = 'Create 360° Gallery';
+                    submitButton.disabled = false;
+                }
+            });
 
             async function create360Image(canvas, images) {
                 const width = canvas.width;
