@@ -124,7 +124,34 @@
             if (input.files && input.files[0]) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    document.getElementById(previewId).src = e.target.result;
+                    const img = new Image();
+                    img.onload = function() {
+                        // Resize image before preview to save memory
+                        const canvas = document.createElement('canvas');
+                        const MAX_SIZE = 800;
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        if (width > height) {
+                            if (width > MAX_SIZE) {
+                                height *= MAX_SIZE / width;
+                                width = MAX_SIZE;
+                            }
+                        } else {
+                            if (height > MAX_SIZE) {
+                                width *= MAX_SIZE / height;
+                                height = MAX_SIZE;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        document.getElementById(previewId).src = canvas.toDataURL('image/jpeg', 0.8);
+                    }
+                    img.src = e.target.result;
                 }
                 reader.readAsDataURL(input.files[0]);
             }
@@ -133,12 +160,20 @@
         document.getElementById('uploadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Show loading indicator
-            const submitButton = document.querySelector('.submit-button');
-            submitButton.textContent = 'Processing...';
-            submitButton.disabled = true;
-    
             try {
+                // Show loading indicator
+                const submitButton = document.querySelector('.submit-button');
+                submitButton.textContent = 'Processing...';
+                submitButton.disabled = true;
+
+                // Validate image sizes before processing
+                for (const pos of ['front', 'back', 'left', 'right']) {
+                    const file = this.elements[pos].files[0];
+                    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                        throw new Error('Images must be less than 10MB each');
+                    }
+                }
+
                 // Create canvas
                 const canvas = document.createElement('canvas');
                 canvas.width = 6000;
