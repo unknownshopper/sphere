@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>360°</title>
+    <title>360° x</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Add piexif.js before other scripts -->
     <script src="https://cdn.jsdelivr.net/npm/piexifjs/piexif.js"></script>
@@ -165,16 +165,40 @@
                 const resultImage = document.getElementById('result-image');
                 const imageData = canvas.toDataURL('image/jpeg', 0.95);
                 
-                // Create XMP metadata
+                // Updated XMP metadata for Facebook 360
                 const zeroth = {};
                 const exif = {};
                 const gps = {};
                 
+                // Add specific XMP tags that Facebook requires
+                zeroth[piexif.ImageIFD.XPKeywords] = "equirectangular";
+                zeroth[piexif.ImageIFD.Software] = "360 Gallery Creator";
+                
+                // Add GPano metadata
+                const xmpMeta = `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Adobe XMP Core 5.1.0">
+                    <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+                        <rdf:Description rdf:about=""
+                            xmlns:GPano="http://ns.google.com/photos/1.0/panorama/"
+                            GPano:UsePanoramaViewer="True"
+                            GPano:ProjectionType="equirectangular"
+                            GPano:CroppedAreaImageWidthPixels="6000"
+                            GPano:CroppedAreaImageHeightPixels="3000"
+                            GPano:FullPanoWidthPixels="6000"
+                            GPano:FullPanoHeightPixels="3000"
+                            GPano:CroppedAreaLeftPixels="0"
+                            GPano:CroppedAreaTopPixels="0">
+                        </rdf:Description>
+                    </rdf:RDF>
+                </x:xmpmeta>`;
+                
                 const exifObj = {"0th":zeroth, "Exif":exif, "GPS":gps};
                 const exifBytes = piexif.dump(exifObj);
                 
-                const newImageData = piexif.insert(exifBytes, imageData);
-                
+                // Insert both EXIF and XMP metadata
+                let newImageData = piexif.insert(exifBytes, imageData);
+                newImageData = newImageData.replace(/^data:image\/jpeg;base64,/, '');
+                newImageData = 'data:image/jpeg;base64,' + newImageData.replace('JFIF', 'Exif') + xmpMeta;
+    
                 // Show result and download button
                 resultImage.src = newImageData;
                 resultImage.style.display = 'block';
