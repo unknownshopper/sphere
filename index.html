@@ -74,7 +74,10 @@
             display: none;
             margin: 20px auto;
             text-align: center;
-            color: #4CAF50;
+        }
+        .submit-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -125,52 +128,52 @@
         document.getElementById('uploadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Show loading message
-            document.getElementById('loading').style.display = 'block';
-            
+            // Show loading indicator
+            const submitButton = document.querySelector('.submit-button');
+            submitButton.textContent = 'Processing...';
+            submitButton.disabled = true;
+    
             try {
-                // Create a real canvas element first
-                const realCanvas = document.createElement('canvas');
-                realCanvas.width = 6000;
-                realCanvas.height = 3000;
-                const ctx = realCanvas.getContext('2d');
-                
+                // Create canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = 6000;
+                canvas.height = 3000;
+                const ctx = canvas.getContext('2d');
+    
+                // Load images
                 const images = {};
-                const positions = ['front', 'back', 'left', 'right'];
-                
-                for (const pos of positions) {
+                for (const pos of ['front', 'back', 'left', 'right']) {
                     const file = this.elements[pos].files[0];
-                    const img = await createImage(file);
-                    images[pos] = img;
+                    images[pos] = await createImage(file);
                 }
-
-                // Draw images directly on the canvas
-                const imgWidth = realCanvas.width / 4;
-                const imgHeight = realCanvas.height / 2;
-
-                // Place images
-                ctx.drawImage(images['front'], realCanvas.width/4, realCanvas.height/4, imgWidth, imgHeight);
-                ctx.drawImage(images['back'], 0, realCanvas.height/4, imgWidth, imgHeight);
-                ctx.drawImage(images['back'], 3*realCanvas.width/4, realCanvas.height/4, imgWidth, imgHeight);
-                ctx.drawImage(images['left'], realCanvas.width/2, realCanvas.height/4, imgWidth, imgHeight);
-                ctx.drawImage(images['right'], 3*realCanvas.width/4, realCanvas.height/4, imgWidth, imgHeight);
-
+    
+                // Draw images in correct positions
+                const imgWidth = canvas.width / 4;
+                const imgHeight = canvas.height;
+                
+                ctx.drawImage(images['front'], imgWidth, 0, imgWidth, imgHeight);
+                ctx.drawImage(images['back'], 0, 0, imgWidth, imgHeight);
+                ctx.drawImage(images['left'], 2 * imgWidth, 0, imgWidth, imgHeight);
+                ctx.drawImage(images['right'], 3 * imgWidth, 0, imgWidth, imgHeight);
+    
                 // Show result and download button
                 const resultImage = document.getElementById('result-image');
-                resultImage.src = realCanvas.toDataURL('image/jpeg', 0.95);
+                resultImage.src = canvas.toDataURL('image/jpeg', 0.95);
                 resultImage.style.display = 'block';
-
+    
                 const downloadLink = document.getElementById('download-link');
                 downloadLink.href = resultImage.src;
                 downloadLink.download = `360photo_${new Date().getTime()}.jpg`;
                 downloadLink.style.display = 'block';
                 downloadLink.textContent = 'Download 360° Image';
+                
             } catch (error) {
                 console.error('Error:', error);
                 alert('Error processing images. Please try again.');
             } finally {
-                // Hide loading message
-                document.getElementById('loading').style.display = 'none';
+                // Reset button
+                submitButton.textContent = 'Create 360° Gallery';
+                submitButton.disabled = false;
             }
         });
 
